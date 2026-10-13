@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>f(изико-математичен синтез)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,700;1,7..72,500&family=Manrope:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef3f1;
+    --grid-fine: rgba(39, 72, 217, 0.07);
+    --grid-bold: rgba(39, 72, 217, 0.16);
+    --ink: #15213b;
+    --ink-soft: #56627c;
+    --blue: #2748d9;
+    --blue-dark: #1b34a8;
+    --card: #ffffff;
+    --serif: "Literata", "PT Serif", Georgia, "Times New Roman", serif;
+    --sans: "Manrope", "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid-bold) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-bold) 1px, transparent 1px),
+      linear-gradient(var(--grid-fine) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
+    background-size: 60px 60px, 60px 60px, 12px 12px, 12px 12px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  header {
+    padding: clamp(20px, 4vw, 40px) 20px 8px;
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: clamp(1.9rem, 5.2vw, 3.4rem);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  h1 .f { font-style: italic; font-weight: 500; }
+
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 20px 16px 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+
+  /* viewer: [prev] [plane] [next] */
+  .viewer {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "prev plane next";
+    align-items: center;
+    gap: clamp(10px, 2.5vw, 28px);
+  }
+  .prev { grid-area: prev; }
+  .next { grid-area: next; }
+  .plane { grid-area: plane; }
+
+  .nav {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background: var(--card);
+    color: var(--ink);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: background-color .15s, color .15s, transform .15s;
+  }
+  .nav:hover { background: var(--ink); color: #fff; }
+  .nav:active { transform: scale(.94); }
+  .nav svg { width: 24px; height: 24px; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+
+  /* coordinate plane around the image */
+  .plane {
+    position: relative;
+    margin: 16px 22px 24px 26px;
+  }
+  .axis { position: absolute; background: var(--ink); pointer-events: none; }
+  .axis::after { content: ""; position: absolute; width: 0; height: 0; }
+  .axis.y { left: -14px; top: -14px; bottom: -14px; width: 2px; }
+  .axis.y::after {
+    top: -3px; left: -4px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 9px solid var(--ink);
+  }
+  .axis.x { left: -14px; right: -16px; bottom: -14px; height: 2px; }
+  .axis.x::after {
+    right: -3px; top: -4px;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 9px solid var(--ink);
+  }
+
+  .frame {
+    background: var(--card);
+    border: 1px solid rgba(21, 33, 59, 0.18);
+    border-radius: 6px;
+    box-shadow: 0 10px 30px -14px rgba(21, 33, 59, 0.35);
+    min-height: 240px;
+    padding: clamp(8px, 2vw, 20px);
+    display: grid;
+    place-items: center;
+    touch-action: pan-y;
+  }
+  .frame img {
+    display: block;
+    max-width: 100%;
+    max-height: min(66vh, 620px);
+    height: auto;
+    width: auto;
+    object-fit: contain;
+    transition: opacity .18s ease;
+  }
+  .frame img.fade { opacity: 0; }
+
+  .missing {
+    max-width: 380px;
+    text-align: center;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .missing strong { color: var(--ink); }
+
+  /* caption */
+  .caption {
+    text-align: center;
+    min-height: 3.2rem;
+  }
+  .caption .name {
+    font-family: var(--serif);
+    font-size: clamp(1.4rem, 3.4vw, 2rem);
+    font-weight: 700;
+  }
+  .caption .count {
+    margin-top: 2px;
+    color: var(--ink-soft);
+    font-size: .95rem;
+  }
+
+  /* x-axis ticks as navigation */
+  .ticks {
+    width: min(100%, 760px);
+    display: flex;
+    gap: 2px;
+    border-top: 2px solid var(--ink);
+    padding: 0 6px;
+  }
+  .tick {
+    flex: 1;
+    height: 34px;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+  }
+  .tick::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0;
+    width: 2px; height: 10px;
+    background: var(--ink-soft);
+    transform: translateX(-50%);
+    transition: height .15s, background-color .15s;
+  }
+  .tick:hover::before { height: 16px; background: var(--ink); }
+  .tick[aria-current="true"]::before {
+    height: 18px; width: 3px; background: var(--blue);
+  }
+  .tick[aria-current="true"]::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 18px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--blue);
+    transform: translateX(-50%);
+  }
+
+  /* phones: arrows go under the image */
+  @media (max-width: 640px) {
+    .viewer {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "plane plane"
+        "prev  next";
+      row-gap: 18px;
+    }
+    .prev { justify-self: end; margin-right: 10px; }
+    .next { justify-self: start; margin-left: 10px; }
+    .plane { margin: 10px 14px 20px 20px; }
+    .axis.y { left: -10px; top: -10px; bottom: -10px; }
+    .axis.x { left: -10px; right: -12px; bottom: -10px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="f">f</span>(изико-математичен синтез)</h1>
+</header>
+
+<main>
+  <section class="viewer" aria-roledescription="галерия" aria-label="Графики">
+    <button class="nav prev" id="prev" aria-label="Предишно изображение">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+
+    <div class="plane">
+      <i class="axis y"></i><i class="axis x"></i>
+      <div class="frame" id="frame">
+        <img id="img" alt="">
+      </div>
+    </div>
+
+    <button class="nav next" id="next" aria-label="Следващо изображение">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </section>
+
+  <div class="caption" aria-live="polite">
+    <div class="name" id="name"></div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <nav class="ticks" id="ticks" aria-label="Всички изображения"></nav>
+</main>
+
+<script>
+  // ============ НАСТРОЙКИ ============
+  // Папка с изображенията, ако не са до index.html (напр. "images/"). Иначе остави "".
+  const FOLDER = "";
+
+  // file  = името на файла БЕЗ разширението. Трябва да съвпада точно с качения в GitHub
+  //         (GitHub различава главни и малки букви). Например "Изотермя" търси "Изотермя.jpg".
+  // title = подписът, който се показва под изображението.
+  const SLIDES = [
+    { file: "Охл",      title: "Изобарно охлаждане" },
+    { file: "Харм",     title: "Хармонично трептене" },
+    { file: "Изотермя", title: "Изотермален процес" },
+    { file: "Параб",    title: "Парабола" },
+    { file: "Топче",    title: "Движение на топче" },
+    { file: "Ом",       title: "Закон на Ом" },
+    { file: "Хук",      title: "Закон на Хук" },
+    { file: "Кръг",     title: "Движение по окръжност" },
+    { file: "Фаз",      title: "Фазова графика на хармоничен осцилатор" },
+    { file: "Термо",    title: "Термодинамичен цикъл в p–V диаграма" },
+    { file: "Хистер",   title: "Зависимост на магнитната индукция от интензитета на полето" },
+    { file: "Траек",    title: "Траектория по права" },
+    { file: "Георги",   title: "Графика на Георги" },
+    { file: "Ив",       title: "Графика на Ивета" },
+    { file: "Мирко",    title: "Графика на Мирко" },
+    { file: "Бож",      title: "Анонимна графика" }
+  ];
+
+  // Разширения, които се пробват по ред, ако първото не бъде намерено.
+  const EXTS = [".jpg", ".JPG", ".jpeg", ".png"];
+  // ===================================
+
+  const img = document.getElementById("img");
+  const frame = document.getElementById("frame");
+  const nameEl = document.getElementById("name");
+  const countEl = document.getElementById("count");
+  const ticksEl = document.getElementById("ticks");
+  let index = 0;
+  let token = 0;
+
+  const urlFor = (name, k) => FOLDER + encodeURIComponent(name) + EXTS[k];
+
+  // ticks
+  SLIDES.forEach((slide, n) => {
+    const b = document.createElement("button");
+    b.className = "tick";
+    b.type = "button";
+    b.setAttribute("aria-label", slide.title);
+    b.title = slide.title;
+    b.addEventListener("click", () => show(n));
+    ticksEl.appendChild(b);
+  });
+
+  function removeMissing() {
+    const m = frame.querySelector(".missing");
+    if (m) m.remove();
+    img.style.display = "";
+  }
+
+  function loadImage(name, title, myToken) {
+    let k = 0;
+    const probe = new Image();
+    probe.onload = () => {
+      if (myToken !== token) return;
+      removeMissing();
+      img.src = probe.src;
+      img.alt = title;
+      img.classList.remove("fade");
+    };
+    probe.onerror = () => {
+      if (myToken !== token) return;
+      k++;
+      if (k < EXTS.length) {
+        probe.src = urlFor(name, k);
+      } else {
+        img.style.display = "none";
+        img.classList.remove("fade");
+        let m = frame.querySelector(".missing");
+        if (!m) {
+          m = document.createElement("div");
+          m.className = "missing";
+          frame.appendChild(m);
+        }
+        m.innerHTML = "Не намирам файла <strong></strong>. Провери дали е качен в GitHub и дали името му съвпада точно, включително главните и малките букви.";
+        m.querySelector("strong").textContent = name + EXTS[0];
+      }
+    };
+    probe.src = urlFor(name, 0);
+  }
+
+  function show(n) {
+    index = (n + SLIDES.length) % SLIDES.length;
+    const slide = SLIDES[index];
+    const myToken = ++token;
+
+    nameEl.textContent = slide.title;
+    countEl.textContent = (index + 1) + " от " + SLIDES.length;
+    [...ticksEl.children].forEach((t, i) =>
+      i === index ? t.setAttribute("aria-current", "true") : t.removeAttribute("aria-current")
+    );
+
+    img.classList.add("fade");
+    setTimeout(() => { if (myToken === token) loadImage(slide.file, slide.title, myToken); }, 120);
+
+    // preload neighbours
+    [index + 1, index - 1].forEach(j => {
+      const p = new Image();
+      p.src = urlFor(SLIDES[(j + SLIDES.length) % SLIDES.length].file, 0);
+    });
+  }
+
+  document.getElementById("prev").addEventListener("click", () => show(index - 1));
+  document.getElementById("next").addEventListener("click", () => show(index + 1));
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "ArrowLeft") show(index - 1);
+    if (e.key === "ArrowRight") show(index + 1);
+  });
+
+  // swipe on phones
+  let startX = null;
+  frame.addEventListener("touchstart", e => { startX = e.touches[0].clientX; }, { passive: true });
+  frame.addEventListener("touchend", e => {
+    if (startX === null) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 45) show(index + (dx < 0 ? 1 : -1));
+    startX = null;
+  }, { passive: true });
+
+  show(0);
+</script>
+</body>
+</html>
